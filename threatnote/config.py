@@ -13,7 +13,8 @@ def create_app():
 
     basedir = os.path.abspath(os.path.dirname(__file__))
     load_dotenv(os.path.join(basedir, '.env'))
-    app.config['SERVER_NAME'] = 'local.docker:5000'
+    if os.environ.get('SERVER_NAME'):
+        app.config['SERVER_NAME'] = os.environ['SERVER_NAME']
 
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'no_secret_key_set'
@@ -33,6 +34,7 @@ def create_app():
     app.config['MISP_API_KEY'] = os.environ.get('MISP_API_KEY')
     app.config['MISP_URL'] = os.environ.get('MISP_URL')
     app.config['HIBP_API_KEY'] = os.environ.get('HIBP_API_KEY')
+    app.config['HUNTER_API_KEY'] = os.environ.get('HUNTER_API_KEY')
 
  
     db.init_app(app)

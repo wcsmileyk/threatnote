@@ -4,9 +4,7 @@ from  models import User, Indicators, Links
 
 from flask import request, redirect, jsonify 
 from flask_login import current_user, login_user
-from werkzeug.security import check_password_hash
-from itsdangerous import (TimedJSONWebSignatureSerializer
-                          as Serializer, BadSignature, SignatureExpired)
+from itsdangerous import URLSafeTimedSerializer as Serializer
 
 import traceback
 import json
@@ -39,8 +37,8 @@ def authenticate_credentials(request):
             api_key=request.form.get('api_key')
         elif 'api_key' in request.args:
             api_key=request.args.get('api_key')
-        elif request.get_json():
-            data=request.get_json()
+        elif request.get_json(silent=True):
+            data=request.get_json(silent=True)
             api_key=data.get('api_key')
         
         if api_key:
@@ -132,9 +130,10 @@ def api_indicator_get(indicator_id):
 def api_get_token():
     user=authenticate_credentials(request)
     if user:
-        s = Serializer(app.config['SECRET_KEY'], expires_in=TOKEN_EXPIRATION)
+        # expiry is enforced when loading: s.loads(token, max_age=TOKEN_EXPIRATION)
+        s = Serializer(app.config['SECRET_KEY'])
         token=s.dumps({'id': user.id})
-        return jsonify({'token': token.decode('ascii'),'expires_in':TOKEN_EXPIRATION})
+        return jsonify({'token': token,'expires_in':TOKEN_EXPIRATION})
     
     resp = jsonify({'message' : 'unauthorized'})
     resp.status_code = 401

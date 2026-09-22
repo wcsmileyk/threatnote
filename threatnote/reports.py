@@ -347,7 +347,7 @@ def view_report(report_id):
                     new_content='{}{}{} '.format(new_content,word,delim)
                 else:
                     txt=search_word
-                    regex=re.compile('\(\S+\)')
+                    regex=re.compile(r'\(\S+\)')
                     if regex.match(search_word):
                         txt=re.search(r'\((.*?)\)',txt).group(1)
                         
@@ -460,7 +460,7 @@ This removes markdown tags from indicators
 def unmark_indicators(content):
     
     #step 1 undo link markdowns 
-    reg = '\[([^\]]*)\]\(([^)]*)\)'
+    reg = r'\[([^\]]*)\]\(([^)]*)\)'
     for matchedtext in re.findall(reg, content):
         if len(matchedtext) > 1:
             if matchedtext[1]:

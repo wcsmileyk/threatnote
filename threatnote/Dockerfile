@@ -1,34 +1,28 @@
-FROM python:3
+FROM python:3.12-slim
 
-ENV BUILD_DEPS="build-essential" \
-    APP_DEPS="curl libpq-dev"
+# whois: CLI used by the python "whois" package for domain enrichment
+# pango/harfbuzz/fonts: runtime libraries WeasyPrint needs to render PDF reports
 RUN apt-get update \
-  && apt-get install -y ${BUILD_DEPS} ${APP_DEPS} --no-install-recommends \
-  && rm -rf /var/lib/apt/lists/* \
-  && rm -rf /usr/share/doc && rm -rf /usr/share/man \
-  && apt-get purge -y --auto-remove ${BUILD_DEPS} \
-  && apt-get clean
+  && apt-get install -y --no-install-recommends \
+       whois \
+       libpango-1.0-0 \
+       libpangoft2-1.0-0 \
+       libharfbuzz-subset0 \
+       fonts-dejavu-core \
+  && rm -rf /var/lib/apt/lists/*
 
-RUN wget http://download.redis.io/redis-stable.tar.gz \
-  && tar zxvf redis-stable.tar.gz \
-  && cd redis-stable \
-  && make \
-  && make install \
-  && rm -rf /app/redis-stable*
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app
 
-COPY requirements.txt requirements.txt
-RUN pip install -r requirements.txt
-
-ADD . /app
 WORKDIR /app
-RUN rm -rf /app/threatnote/__pycache__
 
-ENV FLASK_ENV="development" \
-    PYTHONUNBUFFERED="true"\
-    PYTHONPATH="/app/threatnote"\
-    FLASK_DEBUG="true"\
-    FLASK_APP="/app/threatnote/main.py"
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . /app
 
 EXPOSE 5000
 
-CMD gunicorn -b 0.0.0.0:5000 main:app --workers 4 > /app/gunicorn-log.txt & redis-server > /app/redis-server_log.txt &rq worker enricher > /app/rq_worker_log.txt
+# The rq worker overrides this command in docker-compose.yaml
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--access-logfile", "-", "main:app"]
