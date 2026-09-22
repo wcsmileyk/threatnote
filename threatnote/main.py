@@ -6,18 +6,18 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, flash, url_for, jsonify, abort, Response, send_from_directory
 from flask_login import login_required, current_user
 import json
+import os
 from redis import Redis
 import rq
 from sqlalchemy import func, asc, desc
 from flask_wtf import CSRFProtect
 
-queue = rq.Queue('enricher', connection=Redis.from_url('redis://'))
+queue = rq.Queue('enricher', connection=Redis.from_url(os.environ.get('REDIS_URL', 'redis://localhost:6379/0')))
 from lib import add_db_entry, get_comments, time_ago,escape_jquery, get_user_info, escape_jquery, parse_indicators
 
 main = Blueprint('main', __name__)
 
 app = create_app()
-app.app_context().push()
 
 csrf = CSRFProtect(app)
 csrf.exempt("api.api_indicators_list")
@@ -33,21 +33,26 @@ import settings
 import api
 
 
+# These run in the rq worker, outside of any request, so they need their own app context.
+# Don't push a global app context instead: Flask would reuse it for every request and
+# flask_login caches the current user on g, leaking logins between requests.
 def enrich_pipeline(json_str):
-    json_data=json.loads(json_str)
-    indicator=json_data.get('indicator')
-    org_id=json_data.get('organization')
-    data=Organization.query.filter_by(id=org_id).first().__dict__
-    data.pop('_sa_instance_state')
-    data['indicator']=indicator
-    
-    enriched_data = enrich_indicator(data)
-    Indicators.query.filter_by(indicator=indicator).update(enriched_data)
-    db.session.flush()
-    db.session.commit()
+    with app.app_context():
+        json_data=json.loads(json_str)
+        indicator=json_data.get('indicator')
+        org_id=json_data.get('organization')
+        data=Organization.query.filter_by(id=org_id).first().__dict__
+        data.pop('_sa_instance_state')
+        data['indicator']=indicator
+
+        enriched_data = enrich_indicator(data)
+        Indicators.query.filter_by(indicator=indicator).update(enriched_data)
+        db.session.flush()
+        db.session.commit()
 
 def misp_export(user_details, report,indicators):
-    export_to_misp(user_details,report,indicators)
+    with app.app_context():
+        export_to_misp(user_details,report,indicators)
 
 @app.route('/')
 @login_required

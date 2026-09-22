@@ -7,7 +7,7 @@ from lib import add_db_entry, get_comments
 from main import app
 from config import db
 from lib import add_db_entry, get_user_info
-from werkzeug.security import generate_password_hash, check_password_hash
+from passwords import verify_password, hash_password
 
 @app.route('/user_webhooks', methods=['GET', 'POST'])
 @login_required
@@ -44,7 +44,7 @@ def user_settings():
              
         elif email.lower() != user.email.lower():
             #gotta check to be sure there isn't another record for that email
-            check_user= User.query.filter_by(email=email).filter_by(id != current_user.id).first()
+            check_user= User.query.filter_by(email=email).filter(User.id != current_user.id).first()
             if check_user:
                 flash('Changes not saved. Another user record exists for the email address {}.'.format(email))
                 ok=False
@@ -98,6 +98,7 @@ def users_list():
 
 @app.route('/user/new')
 @app.route('/user/edit/<user_id>', methods=['GET'])
+@login_required
 def user_new(user_id=None):
     if not user_id:
         user_id=request.args.get('user_id')
@@ -205,7 +206,7 @@ def user_submit(user_id=None):
         user.email=email
         user.role=role
         if password:
-            user.password=generate_password_hash(password, method='sha256')
+            user.password=hash_password(password)
         if(ok):
             if user_id:
                 db.session.commit()
@@ -235,15 +236,14 @@ def change_password():
 def update_password():
     args = request.form
     password=args.get('current_password')
-    #password=generate_password_hash(args.get('current_password'), method='sha256')
-    if not check_password_hash(current_user.password, password):
+    if not verify_password(current_user.password, password):
             # Need to flash message that password is incorrect
             flash('Current password is incorrect.')
             print('incorrect')
     else:
         if args.get('new_password') == args.get('confirm_password'):
             password = args.get('confirm_password')
-            password=generate_password_hash(password, method='sha256')
+            password=hash_password(password)
             User.query.filter_by(id=current_user.id).update({'password':password})
             db.session.commit()
             db.session.flush()

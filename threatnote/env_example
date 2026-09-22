@@ -9,3 +9,9 @@ SQLALCHEMY_DATABASE_URI=sqlite:////db/threatnote.db
 #if you prefer postgresql need to install psycopg2
 #SQLALCHEMY_DATABASE_URI=postgresql:///db_name
 
+
+#redis used for the enrichment job queue (docker-compose sets this for you)
+#REDIS_URL=redis://localhost:6379/0
+
+#optional: only set this if you serve threatnote on a fixed hostname
+#SERVER_NAME=threatnote.example.com:5000

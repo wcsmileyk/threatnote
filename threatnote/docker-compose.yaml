@@ -1,10 +1,31 @@
-version: "3.3"
-
 services:
   threatnote:
+    build: .
     image: threatnote
     env_file: ./env
+    environment:
+      REDIS_URL: redis://redis:6379/0
     ports:
       - "5000:5000"
     volumes:
-       - ./db:/db
+      - ./db:/db
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  worker:
+    image: threatnote
+    command: ["rq", "worker", "--url", "redis://redis:6379/0", "enricher"]
+    env_file: ./env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./db:/db
+    depends_on:
+      - redis
+      - threatnote
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
